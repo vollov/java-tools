@@ -22,6 +22,7 @@ public class CryptCommand {
 		Options options = new Options();
 		// add t option
 		options.addOption("h", false, "print this message");
+		options.addOption("p", true, "db password");
 		options.addOption("a", true, "actions <encrypt | decrypt>");
 		options.addOption("t", true, "table name");
 		
@@ -32,6 +33,7 @@ public class CryptCommand {
 		
 		String tableName = "";
 		String[] fields = null;
+		String password = "";
 		try {
 			// parse the command line arguments
 			CommandLine cmd = parser.parse(options, args);
@@ -39,6 +41,12 @@ public class CryptCommand {
 			if (cmd.hasOption("h"))
 				help(options);
 
+			password = cmd.getOptionValue("p");
+
+			if (password == null) {
+				help(options);
+			}
+			
 			tableName = cmd.getOptionValue("t");
 
 			if (tableName == null) {
@@ -67,6 +75,7 @@ public class CryptCommand {
 			System.out.println("Unexpected exception:" + exp.getMessage());
 		}
 
+		System.out.print(" password " + password);
 		System.out.print(" table " + tableName);
 		System.out.println(" on fields " + StringUtils.join(fields, ","));
 //		for(String f: fields){

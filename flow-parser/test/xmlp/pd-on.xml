@@ -1,0 +1,1764 @@
+
+<process-definition name="ontarioWorkflow">  
+  <!--PROTECTED REGION ID(USER_EDITABLE_RGN_ontarioWorkflow) ENABLED START  <?JbpmExtensions $Revision: 1.3 $?> -->
+  <event type="task-end"> 
+    <action expression="#{baseJbpmProcessAction.createEventLogEntry}"/> 
+  </event>  
+  <event type="node-enter"> 
+    <action expression="#{workflowMonitorAction.nodeDisplay}"/> 
+  </event>  
+  
+  <!--PROTECTED REGION END-->  
+  <swimlane name="lender"> 
+    <assignment class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.assign.LenderAssignment"/> 
+  </swimlane>  
+  <swimlane name="realEstate"> 
+    <assignment class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.assign.RealEstateAssignment"/> 
+  </swimlane>  
+  <swimlane name="legal"> 
+    <assignment class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.assign.LegalAssignment"/> 
+  </swimlane>  
+  <swimlane name="propertyManager"> 
+    <assignment class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.assign.PropertyManagerAssignment"/> 
+  </swimlane>  
+  <swimlane name="appraisal"> 
+    <assignment class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.assign.AppraisalAssignment"/> 
+  </swimlane>  
+  <swimlane name="mortgageInsurer"> 
+    <assignment class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.assign.MortgageInsurerAssignment"/> 
+  </swimlane>  
+  <start-state name="startFile"> 
+    <task name="startFile" swimlane="lender"></task>  
+    <transition to="verifyAllocations" name="proceedToVerifyAllocations"></transition> 
+  </start-state>  
+  <task-node name="conflictCheck"> 
+    <task name="conflictCheck" swimlane="legal" duedate="2 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.sendAssignmentNotification}"/> 
+      </event>
+    </task>  
+    <transition to="reassignLawyer" name="conflict"></transition>  
+    <transition to="demandLetterAndTitleSearchFork" name="acceptLegal"></transition> 
+  </task-node>  
+  <fork name="assignmentfork"> 
+    <transition to="hiddenNode6" name="proceedToHiddenNode6"></transition>  
+    <transition to="pmAcceptFile" name="proceedToPmAcceptFile"> 
+      <action expression="#{loanDataAction.updateFork('mailFlag')}"/> 
+    </transition>  
+    <transition to="hiddenNode4" name="proceedToHiddenNode4"></transition>  
+    <transition to="hiddenNode7" name="proceedToHiddenNode7"></transition>  
+    <transition to="reAcceptFile" name="proceedToReAcceptFile"> 
+      <action expression="#{loanDataAction.updateFork('mailFlag')}"/> 
+    </transition>  
+    <transition to="conflictCheck" name="proceedToConflictCheck"> 
+      <action expression="#{loanDataAction.updateFork('mailFlag')}"/> 
+    </transition>  
+    <transition to="orderDriveByAppraisal" name="proceedToOrderDriveByAppraisal"></transition> 
+  </fork>  
+  <task-node name="pmAcceptFile"> 
+    <task name="pmAcceptFile" swimlane="propertyManager" duedate="1 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.sendAssignmentNotification}"/> 
+      </event> 
+    </task>  
+    <transition to="reassignPM" name="rejectedPm"></transition>  
+    <transition to="orderFirstOccupancyCheck" name="acceptPm"></transition> 
+  </task-node>  
+  <task-node name="reAcceptFile"> 
+    <task name="reAcceptFile" swimlane="realEstate" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.sendAssignmentNotification}"/> 
+      </event> 
+    </task>  
+    <transition to="reassignRealtor" name="rejectedRe"></transition>  
+    <transition to="orderDriveBY" name="acceptRe"></transition> 
+  </task-node>  
+  <task-node name="reassignLawyer"> 
+    <task name="reassignLawyer" swimlane="lender" duedate="1 business days"></task>  
+    <transition to="conflictCheck" name="reassignLegal"></transition> 
+  </task-node>  
+  <fork name="demandLetterAndTitleSearchFork"> 
+    <transition to="issueDemandLetter" name="issueDemandLetter"></transition>  
+    <transition to="titleSearch" name="proceedToTitleSearch"></transition>  
+    <transition to="taxSearch" name="proceedToTaxSearch"></transition> 
+  </fork>  
+  <task-node name="issueDemandLetter"> 
+    <task name="issueDemandLetter" swimlane="legal" duedate="1 business days"></task>  
+    <transition to="demandExpires" name="proceedToDemandExpires"> 
+      <action expression="#{legalInfoAction.updateStatus('DEMAND_ISSUED')}"/>  
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="issueSOC" name="notRequired"> 
+      <action expression="#{lenderAction.createCustomEvent('addImpIns')}"/>  
+      <description>"$2"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="titleSearch"> 
+    <task name="titleSearch" swimlane="legal" duedate="1 business days"></task>  
+    <transition to="reviewTitleSearch" name="proceedToReviewTitleSearch"></transition> 
+  </task-node>  
+  <task-node name="reviewTitleSearch"> 
+    <task name="reviewTitleSearch" swimlane="lender" duedate="1 business days"></task>  
+    <transition to="demandLetterAndTitleSearchJoin" name="reviewedTitleSearch"></transition> 
+  </task-node>  
+  <task-node name="demandExpires"> 
+    <task name="demandExpires" swimlane="legal" duedate="5 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateDemandExpiredDueDate}"/> 
+      </event> 
+    </task>  
+    <transition to="legalCheck" name="proceedToLegalCheck"> 
+      <action expression="#{lenderAction.createCustomEvent('addImpIns')}"/> 
+    </transition> 
+  </task-node>  
+  <task-node name="issueSOC"> 
+    <task name="issueSOC" swimlane="legal" duedate="3 business days"></task>  
+    <transition to="issueNoticeOfSale" name="notRequired"> 
+      <description>"$3"</description> 
+    </transition>  
+    <transition to="serveStatementOfClaim" name="issued"> 
+      <action expression="#{legalInfoAction.updateStatus('SOC_ISSUED')}"/>  
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="socSuspendFork" name="suspend"> 
+      <action expression="#{loanDataAction.updateFork('suspended')}"/>  
+      <description>"$2"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="serveStatementOfClaim"> 
+    <task name="serveStatementOfClaim" swimlane="legal" duedate="10 business days"></task>  
+    <transition to="socSuspendFork" name="suspend"> 
+      <action expression="#{loanDataAction.updateFork('suspended')}"/>  
+      <description>"$2"</description> 
+    </transition>  
+    <transition to="issueNoticeOfSale" name="served"> 
+      <action expression="#{legalInfoAction.updateStatus('SOC_SERVED')}"/>  
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="issueNoticeOfSale" name="notRequired"> 
+      <description>"$3"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="issueNoticeOfSale"> 
+    <task name="issueNoticeOfSale" swimlane="legal" duedate="2 business days"></task>  
+    <transition to="isSocSuspended" name="issued"> 
+      <action expression="#{ontarioEventObserverAction.createEventAndUpdateStatus('signalHiddenNode7','NOS_ISSUED')}"/> 
+    </transition> 
+  </task-node>  
+  <task-node name="nOSExpiry" end-tasks="true"> 
+    <task name="nOSExpiry" swimlane="legal" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateDueDate('legal','getNosExpiryDate')}"/> 
+      </event>  
+      <timer duedate="30 days" name="newtimer" transition="nosExpired"/> 
+    </task>  
+    <transition to="fromNOSExpiryFork" name="nosExpired"> 
+      <action expression="#{ontarioEventObserverAction.updateNosExpiredStatus}"/> 
+    </transition> 
+  </task-node>  
+  <task-node name="motionForJudgment"> 
+    <task name="motionForJudgment" swimlane="legal" duedate="5 business days"></task>  
+    <transition to="writofSeizureandSale" name="obtained"> 
+      <action expression="#{legalInfoAction.updateStatus('RTS_ON_HOLD_PENDING_SALE')}"/>  
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="writofSeizureandSale" name="notRequired"> 
+      <description>"$3"</description> 
+    </transition>  
+    <transition to="motionForJudgmentFork" name="suspend"> 
+      <action expression="#{loanDataAction.updateFork('suspended')}"/>  
+      <description>"$2"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="occupancyCheckReceived"> 
+    <task name="occupancyCheckReceived" swimlane="propertyManager" duedate="3 business days"></task>  
+    <transition to="occupancyCheck" name="uploaded"> 
+      <action expression="#{propertyManagerInfoAction.updateStatus('OCCUPANCY_CHECK_1')}"/> 
+    </transition> 
+  </task-node>  
+  <task-node name="driveByReceived"> 
+    <task name="driveByReceived" swimlane="realEstate" duedate="3 business days"></task>  
+    <transition to="loanLossProvisionReport" name="uploaded"> 
+      <action expression="#{realEstateInfoAction.updateStatus('DRIVE_BY')}"/> 
+    </transition> 
+  </task-node>  
+  <join name="assignmentJoin"> 
+    <transition to="closeFile" name="proceedToCloseFile"></transition> 
+  </join>  
+  <end-state name="fileClosed"/>  
+  <decision name="occupancyCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.OccupancyCheckDecisionHandler"/>  
+    <transition to="flipPMStatusToOnHold" name="owner"> 
+      <action expression="#{propertyManagerInfoAction.updateStatus('ON_HOLD')}"/> 
+    </transition>  
+    <transition to="flipPMStatusToOnHold" name="unconfirmed"> 
+      <action expression="#{propertyManagerInfoAction.updateStatus('ON_HOLD')}"/> 
+    </transition>  
+    <transition to="secureProperty" name="vacant"></transition>  
+    <transition to="setTenantedMonitoringFrequency" name="tenanted"> 
+      <action expression="#{propertyManagerInfoAction.updateStatus('TENANTED')}"/> 
+    </transition> 
+  </decision>  
+  <task-node name="serveRentalAttornment"> 
+    <task name="serveRentalAttornment" swimlane="propertyManager" duedate="9 business days"></task>  
+    <transition to="updateRentStatus" name="rentAttornmentServed"> 
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="tenantMonitoringJoin" name="notRequired"> 
+      <description>"$2"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="flipPMStatusToOnHold"> 
+    <task name="flipPMStatusToOnHold" swimlane="propertyManager" duedate="0 business days"></task>  
+    <transition to="assignmentJoin" name="onHold"> 
+      <action expression="#{propertyManagerInfoAction.updateStatus('ON_HOLD')}"/> 
+    </transition> 
+  </task-node>  
+  <fork name="fromNOSExpiryFork"> 
+    <transition to="motionForJudgment" name="proceedToMotionForJudgment"> 
+      <action expression="#{ontarioEventObserverAction.addVariableToContext('nosExpiredForMonitoring')}"/> 
+    </transition>  
+    <transition to="tenantOccupancyCheck" name="proceedToTenantOccupancyCheck"></transition> 
+  </fork>  
+  <task-node name="listProperty"> 
+    <task name="listProperty" swimlane="realEstate" duedate="1 business days"></task>  
+    <transition to="monitorFork" name="proceedToMonitorFork"> 
+      <action expression="#{loanDataAction.resetForRelist()}"/> 
+    </transition> 
+  </task-node>  
+  <task-node name="orderFullCMA"> 
+    <task name="orderFullCMA" swimlane="realEstate" duedate="1 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.sendAssignmentNotification}"/> 
+      </event> 
+    </task>  
+    <transition to="fullCMAReceived" name="ordered"> 
+      <action expression="#{realEstateInfoAction.updateStatus('RIGHT_TO_SELL')}"/> 
+    </transition> 
+  </task-node>  
+  <task-node name="orderSecondOccupancyCheck"> 
+    <task name="orderSecondOccupancyCheck" swimlane="propertyManager" duedate="0 business days"></task>  
+    <transition to="secondOccupancyCheckReceived" name="ordered"></transition> 
+  </task-node>  
+  <task-node name="secureProperty"> 
+    <task name="secureProperty" swimlane="lender" duedate="1 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateDueDate}"/> 
+      </event> 
+    </task>  
+    <transition to="secureProperty" name="reviewLater"> 
+      <action expression="#{loanDataAction.initializeVariable('addDate',14)}"/>  
+      <description>"$2"</description> 
+    </transition>  
+    <transition to="setVacantUnsecuredMonitoringFrequency" name="noSecureProperty"> 
+      <description>"$3"</description> 
+    </transition>  
+    <transition to="vacantSecureProperty" name="yesSecureProperty"> 
+      <action expression="#{loanDataAction.updateFork('mailFlag')}"/>  
+      <description>"$1"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="vacantSecureProperty"> 
+    <task name="vacantSecureProperty" swimlane="propertyManager" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.sendAssignmentNotification}"/> 
+      </event> 
+    </task>  
+    <transition to="reviewSecurement" name="notSecured"> 
+      <description>"$2"</description> 
+    </transition>  
+    <transition to="setVacantMonitoringFrequency" name="propertySecured"> 
+      <action expression="#{propertyManagerInfoAction.updateStatus('SECURED')}"/>  
+      <description>"$1"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="issueRentalAttornment"> 
+    <task name="issueRentalAttornment" swimlane="legal" duedate="3 business days"></task>  
+    <transition to="serveRentalAttornment" name="issued"></transition>  
+    <transition to="tenantMonitoringJoin" name="notRequired"></transition> 
+  </task-node>  
+  <task-node name="updateRentStatus"> 
+    <task name="updateRentStatus" swimlane="propertyManager"></task>  
+    <transition to="tenantMonitoringJoin" name="notRequired"> 
+      <description>"$3"</description> 
+    </transition>  
+    <transition to="proceedWithFileN4" name="rentNotPaid"> 
+      <description>"$2"</description> 
+    </transition>  
+    <transition to="rentalPropSoldCheck" name="rentalStatusUpdated"> 
+      <description>"$1"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="tenantedMonitor"> 
+    <task name="tenantedMonitor" swimlane="propertyManager" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{propertyManagerInfoAction.updateFrequencyTaskDueDate}"/> 
+      </event> 
+    </task>  
+    <transition to="vacantStatusCheck" name="monitoring"> 
+      <action expression="#{propertyManagerInfoAction.updateStatus('MONITORING')}"/> 
+    </transition> 
+  </task-node>  
+  <task-node name="fileN4"> 
+    <task name="fileN4" swimlane="legal" duedate="3 business days"></task>  
+    <transition to="tenantMonitoringJoin" name="notRequired"> 
+      <description>"$2"</description> 
+    </transition>  
+    <transition to="setEvictionDate" name="n4Filed"> 
+      <description>"$1"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="addUpdatedListing"> 
+    <task name="addUpdatedListing" swimlane="realEstate" duedate="0 business days"></task>  
+    <transition to="propertyListed" name="uploaded"></transition> 
+  </task-node>  
+  <task-node name="enterOfferDetails"> 
+    <task name="enterOfferDetails" swimlane="realEstate"></task>  
+    <transition to="mortgageInsureRealtorAgainCheck" name="noOffer"> 
+      <action expression="#{loanDataAction.updateFork('noofferhand')}"/> 
+    </transition>  
+    <transition to="checkConditionsWaived" name="acceptOffer"> 
+      <action expression="#{realEstateInfoAction.updateStatus('CONDITIONAL_SALE')}"/> 
+    </transition> 
+  </task-node>  
+  <task-node name="listedCMAReceived"> 
+    <task name="listedCMAReceived" swimlane="realEstate" duedate="3 business days"></task>  
+    <transition to="addUpdatedListing" name="uploaded"></transition> 
+  </task-node>  
+  <task-node name="checkConditionsWaived"> 
+    <task name="checkConditionsWaived" swimlane="realEstate" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{offerAction.updateTaskDueDate}"/> 
+      </event> 
+    </task>  
+    <transition to="checkConditionsWaived" name="extension"> 
+      <description>"$3"</description> 
+    </transition>  
+    <transition to="enterOfferDetails" name="notwaived"> 
+      <action expression="#{realEstateInfoAction.updateStatus('LISTED')}"/>  
+      <description>"$2"</description> 
+    </transition>  
+    <transition to="monitorJoin" name="soldFirm"> 
+      <action expression="#{realEstateInfoAction.updateStatus('SOLD_FIRM')}"/>  
+      <description>"$1"</description> 
+    </transition> 
+  </task-node>  
+  <decision name="mortgageInsuredRealtorCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.MortgageInsuredCheckDecisionHandler"/>  
+    <transition to="reassignSubAgent" name="noMortgageInsured"></transition>  
+    <transition to="miInsurerCheck2" name="yesMortgageInsured"></transition> 
+  </decision>  
+  <task-node name="reassignSubAgent"> 
+    <task name="reassignSubAgent" swimlane="realEstate" duedate="1 business days"></task>  
+    <transition to="monitorJoin2" name="proceedToMonitorJoin2"></transition> 
+  </task-node>  
+  <decision name="listedMaxTimesCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.ListedMaxTimesCheckDecisionHandler"/>  
+    <transition to="relistCheck" name="yesListedMaxTime"> 
+      <action expression="#{loanDataAction.updateFork('ninetydaysover')}"/> 
+    </transition>  
+    <transition to="listedCMAReceived" name="noListedMaxTime"></transition> 
+  </decision>  
+  <task-node name="offerExpiry"> 
+    <task name="offerExpiry"></task> 
+  </task-node>  
+  <task-node name="loanLossProvisionReport"> 
+    <task name="loanLossProvisionReport" swimlane="lender" duedate="1 business days"></task>  
+    <transition to="assignmentJoin" name="notRequired"> 
+      <description>"$2"</description> 
+    </transition>  
+    <transition to="assignmentJoin" name="proceedToAssignmentJoin"> 
+      <description>"$1"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="securementReport"> 
+    <task name="securementReport" duedate="5 business days"></task> 
+  </task-node>  
+  <task-node name="redirectUtilitiesIn"> 
+    <task name="redirectUtilitiesIn" swimlane="propertyManager" duedate="1 business days"></task>  
+    <transition to="uploadQuotesReport" name="proceedToUploadQuotesReport"> 
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="uploadQuotesReport" name="notRequired"> 
+      <description>"$2"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="uploadQuotesReport"> 
+    <task name="uploadQuotesReport" swimlane="propertyManager" duedate="3 business days"></task>  
+    <transition to="vacantSecureJoin" name="notRequired"> 
+      <description>"$2"</description> 
+    </transition>  
+    <transition to="reviewQuote" name="uploaded"> 
+      <description>"$1"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="vacantMonitoring"> 
+    <task name="vacantMonitoring" swimlane="propertyManager" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{propertyManagerInfoAction.updateFrequencyTaskDueDate}"/> 
+      </event> 
+    </task>  
+    <transition to="vacantMonitoringPropertySoldCheck" name="inspectionComplete"> 
+      <action expression="#{propertyManagerInfoAction.updateStatus('MONITORING')}"/> 
+    </transition> 
+  </task-node>  
+  <task-node name="reviewQuote"> 
+    <task name="reviewQuote" swimlane="lender" duedate="1 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateDueDate}"/> 
+      </event> 
+    </task>  
+    <transition to="quoteApprovalCheck" name="quoteReviewed"> 
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="reviewQuote" name="reviewLater"> 
+      <action expression="#{loanDataAction.initializeVariable('addDate',10)}"/> 
+    </transition> 
+  </task-node>  
+  <task-node name="quoteWorkComplete"> 
+    <task name="quoteWorkComplete" swimlane="propertyManager" duedate="7 business days"></task>  
+    <transition to="vacantSecureJoin" name="quoteWorkCompleted"> 
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="vacantSecureJoin" name="notRequired"> 
+      <description>"$2"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="possessionOccupancyCheck"> 
+    <task name="possessionOccupancyCheck" swimlane="propertyManager" duedate="3 business days"></task>  
+    <transition to="possessionOccCheck" name="received"></transition> 
+  </task-node>  
+  <task-node name="ownerOccupiedMonitoring"> 
+    <task name="ownerOccupiedMonitoring" swimlane="propertyManager" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{propertyManagerInfoAction.updateFrequencyTaskDueDate}"/> 
+      </event> 
+    </task>  
+    <transition to="ownerOccupancyCheck" name="proceedToOwnerOccupancyCheck"> 
+      <action expression="#{propertyManagerInfoAction.updateStatus('MONITORING')}"/> 
+    </transition> 
+  </task-node>  
+  <task-node name="writofSeizureandSale"> 
+    <task name="writofSeizureandSale" swimlane="legal" duedate="15 business days"></task>  
+    <transition to="isMFJSuspended" name="obtained"> 
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="isMFJSuspended" name="notRequired"> 
+      <description>"$2"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="writOfPossession"> 
+    <task name="writOfPossession" swimlane="legal" duedate="20 business days"></task>  
+    <transition to="reviewWritOfPossession" name="suspend"> 
+      <description>"$2"</description> 
+    </transition>  
+    <transition to="wrossForkCheck" name="obtained"> 
+      <action expression="#{ontarioEventObserverAction.createEventAndUpdateContextVariable('signalLenderHiddenNode','writOfPossessionCompleted')}"/>  
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="wrossForkCheck" name="notRequired"> 
+      <description>"$3"</description> 
+    </transition> 
+  </task-node>  
+  <fork name="evictionFork"> 
+    <transition to="tenantedCheck" name="proceedToTenantedCheck"></transition>  
+    <transition to="evictedOccupancyCheck" name="proceedToEvictedOccupancyCheck"> 
+      <action expression="#{loanDataAction.updateFork('evictionFork')}"/> 
+    </transition> 
+  </fork>  
+  <task-node name="attendEvictionAndSecureProperty"> 
+    <task name="attendEvictionAndSecureProperty" swimlane="propertyManager" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateDueDate('legal','getEvictionDate')}"/> 
+      </event> 
+    </task>  
+    <transition to="evictionDateSetFork" name="complete"> 
+      <action expression="#{loanDataAction.addTwoVariables('evictionDateSetFork','vacantSecureProperty')}"/> 
+    </transition>  
+    <transition to="evictionDecision" name="suspend"></transition> 
+  </task-node>  
+  <task-node name="transferUtilitiesOut"> 
+    <task name="transferUtilitiesOut" swimlane="propertyManager" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateDueDate('sale','getClosingDate',1)}"/> 
+      </event> 
+    </task>  
+    <transition to="uploadfinalinvoices" name="notRequired"> 
+      <description>"$2"</description> 
+    </transition>  
+    <transition to="uploadfinalinvoices" name="proceedToUploadfinalinvoices"> 
+      <action expression="#{propertyManagerInfoAction.updateStatus('SOLD_PENDING_FINALS')}"/>  
+      <description>"$1"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="uploadfinalinvoices"> 
+    <task name="uploadfinalinvoices" swimlane="propertyManager" duedate="20 business days"></task>  
+    <transition to="keyCheck3" name="notRequired"> 
+      <action expression="#{loanDataAction.updateLenderCloseFileDueDateVariable}"/>  
+      <description>"$2"</description> 
+    </transition>  
+    <transition to="pmCloseFile" name="uploaded"> 
+      <action expression="#{loanDataAction.updateLenderCloseFileDueDateVariable}"/>  
+      <description>"$1"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="saleProceedsDeposited"> 
+    <task name="saleProceedsDeposited" swimlane="legal" duedate="1 business days"></task>  
+    <transition to="closeFileMICheck2" name="proceedsDeposited"></transition> 
+  </task-node>  
+  <fork name="fromClosingFork"> 
+    <transition to="fileMainInsuranceClaim" name="proceedToFileMainInsuranceClaim"></transition>  
+    <transition to="transferUtilitiesOut" name="proceedToTransferUtilitiesOut"></transition> 
+  </fork>  
+  <task-node name="assignJudgmentandFinalReporttoMI"> 
+    <task name="assignJudgmentandFinalReporttoMI" swimlane="legal" duedate="10 business days"></task>  
+    <transition to="keyCheck2" name="notRequired"> 
+      <description>"$2"</description> 
+    </transition>  
+    <transition to="closedFileMICheck" name="complete"> 
+      <action expression="#{loanDataAction.legalStatusChangeAndUpdateFork('insured','SOLD_CLOSED')}"/>  
+      <description>"$1"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="setVacantMonitoringFrequency"> 
+    <task name="setVacantMonitoringFrequency" swimlane="lender" duedate="0 business days"></task>  
+    <transition to="vacantSecureFork" name="frequencySet"> 
+      <action expression="#{loanDataAction.updateFork('vacantSecureProperty')}"/> 
+    </transition> 
+  </task-node>  
+  <decision name="evictionOccupancyCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.OccupancyCheckDecisionHandler"/>  
+    <transition to="orderPossessionOccupancyCheck" name="unconfirmed"></transition>  
+    <transition to="hiddenNode2" name="tenanted"> 
+      <action expression="#{loanDataAction.updateFork('tenanted')}"/> 
+    </transition>  
+    <transition to="hiddenNode2" name="vacant"> 
+      <action expression="#{legalInfoAction.updateStatus('RIGHT_TO_SALE')}"/> 
+    </transition>  
+    <transition to="orderPossessionOccupancyCheck" name="owner"></transition> 
+  </decision>  
+  <decision name="secOccupancyCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.SecOccupancyCheckDecisionHandler"/>  
+    <transition to="secOccupancyFork" name="vacantTenanted"></transition>  
+    <transition to="flipPMStatusOnHoldOwner" name="owner"></transition>  
+    <transition to="flipPMStatusOnHoldOwner" name="unconfirmed"></transition> 
+  </decision>  
+  <decision name="tenantedPropertySoldCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.TenantedPropertySoldCheckDecisionHandler"/>  
+    <transition to="keyExchangedConfirmCheck3" name="notSold"></transition>  
+    <transition to="tenantMonitoringJoin" name="sold"> 
+      <action expression="#{propertyManagerInfoAction.updateStatus('SOLD_FIRM')}"/> 
+    </transition> 
+  </decision>  
+  <decision name="ownerOccupancyCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.OccupancyCheckDecisionHandler"/>  
+    <transition to="possessionJoin" name="vacant"></transition>  
+    <transition to="ownerOccupiedMonitoring" name="unconfirmed"></transition>  
+    <transition to="ownerOccupiedMonitoring" name="owner"></transition> 
+  </decision>  
+  <decision name="vacantMonitoringPropertySoldCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.TenantedPropertySoldCheckDecisionHandler"/>  
+    <transition to="vacantSecureJoin" name="sold"> 
+      <action expression="#{propertyManagerInfoAction.updateStatus('SOLD_FIRM')}"/> 
+    </transition>  
+    <transition to="keyExchangedCheck" name="notSold"></transition> 
+  </decision>  
+  <task-node name="reassignPM"> 
+    <task name="reassignPM" swimlane="lender" duedate="1 business days"></task>  
+    <transition to="pmAcceptFile" name="reassignPm"></transition> 
+  </task-node>  
+  <task-node name="reassignRealtor"> 
+    <task name="reassignRealtor" swimlane="lender" duedate="1 business days"></task>  
+    <transition to="reAcceptFile" name="reassignRe"></transition> 
+  </task-node>  
+  <task-node name="propertyListed" end-tasks="true"> 
+    <task name="propertyListed" swimlane="realEstate" duedate="20 business days"> 
+      <timer duedate="22 days" name="newtimer" transition="proceedToPropertySoldCheck"/> 
+    </task>  
+    <transition to="propertySoldCheck" name="proceedToPropertySoldCheck"></transition> 
+  </task-node>  
+  <decision name="propertySoldCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.PropertySoldCheckDecisionHandler"/>  
+    <transition to="relistFork" name="notSold"> 
+      <action expression="#{loanDataAction.countListing()}"/> 
+    </transition>  
+    <transition to="passedRelistForkCheck" name="sold"></transition> 
+  </decision>  
+  <task-node name="taxSearch"> 
+    <task name="taxSearch" swimlane="legal" duedate="10 business days"></task>  
+    <transition to="reviewTaxSearch" name="proceedToReviewTaxSearch"> 
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="demandLetterAndTitleSearchJoin" name="notRequired"> 
+      <description>"$3"</description> 
+    </transition>  
+    <transition to="createMWIPTaxSearch" name="suspend"> 
+      <description>"$2"</description> 
+    </transition> 
+  </task-node>  
+  <decision name="tenantOccupancyCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.OccupancyCheckDecisionHandler"/>  
+    <transition to="orderSecondOccupancyCheck" name="unconfirmed"></transition>  
+    <transition to="reviewForListing" name="tenanted"> 
+      <action expression="#{ontarioEventObserverAction.addVariableToContext('tenantedReviewForListing')}"/> 
+    </transition>  
+    <transition to="orderSecondOccupancyCheck" name="owner"></transition>  
+    <transition to="tenantedNowVacantCheck" name="vacant"></transition> 
+  </decision>  
+  <fork name="monitorFork"> 
+    <transition to="propertyListed" name="proceedToPropertyListed"> 
+      <action expression="#{loanDataAction.initializeVariable('numberOfListing')}"/> 
+    </transition>  
+    <transition to="enterOfferDetails" name="proceedToEnterOfferDetails"> 
+      <action expression="#{realEstateInfoAction.updateStatus('LISTED')}"/> 
+    </transition> 
+  </fork>  
+  <join name="monitorJoin"> 
+    <transition to="miDecisionFork" name="proceedToMiDecisionFork"> 
+      <action expression="#{lenderAction.createCustomEvent('executeHiddenNode6Final')}"/> 
+    </transition> 
+  </join>  
+  <fork name="possessionFork"> 
+    <transition to="setEvictionDate" name="proceedToSetEvictionDate"></transition>  
+    <transition to="setOwnerOccupiedMonitoring" name="proceedToSetOwnerOccupiedMonitoring"></transition> 
+  </fork>  
+  <join name="evictionJoin"> 
+    <transition to="evictionDateSetCheck" name="proceedToEvictionDateSetCheck"></transition> 
+  </join>  
+  <join name="possessionJoin"> 
+    <transition to="fromNOSExpiryJoin" name="proceedToFromNOSExpiryJoin"></transition> 
+  </join>  
+  <join name="fromClosingJoin"> 
+    <transition to="miDecisionJoin" name="proceedToMiDecisionJoin"></transition> 
+  </join>  
+  <task-node name="reviewTaxSearch"> 
+    <task name="reviewTaxSearch" swimlane="lender" duedate="1 business days"></task>  
+    <transition to="demandLetterAndTitleSearchJoin" name="reviewedTaxSearch"></transition> 
+  </task-node>  
+  <task-node name="legalCheck"> 
+    <task name="legalCheck" swimlane="lender" duedate="3 business days"></task>  
+    <transition to="issueSOC" name="proceedToLegalAction"> 
+      <action expression="#{loanDataAction.setLegalActionDate()}"/>  
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="issueNewDemandLetter" name="issueNewDemandLetter"> 
+      <description>"$2"</description> 
+    </transition> 
+  </task-node>  
+  <join name="demandLetterAndTitleSearchJoin"> 
+    <transition to="assignmentJoin" name="proceedToAssignmentJoin"></transition> 
+  </join>  
+  <join name="fromNOSExpiryJoin"> 
+    <transition to="miPropertySoldCheck" name="proceedToMiPropertySoldCheck"> 
+      <action expression="#{newBrunswickEventObserverAction.closeAllHiddenNodes}"/> 
+    </transition> 
+  </join>  
+  <decision name="secOccupancyJoinCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.SecOccupancyJoinCheckDecisionHandler"/>  
+    <transition to="vacantSecuredJoin2" name="no"></transition>  
+    <transition to="secOccupancyJoin" name="yes"></transition> 
+  </decision>  
+  <task-node name="flipPMStatusOnHoldOwner"> 
+    <task name="flipPMStatusOnHoldOwner" swimlane="propertyManager" duedate="0 business days"></task>  
+    <transition to="fromNOSExpiryJoin" name="onHold"> 
+      <action expression="#{propertyManagerInfoAction.updateStatus('ON_HOLD')}"/> 
+    </transition> 
+  </task-node>  
+  <task-node name="uploadClosingDocument"> 
+    <task name="uploadClosingDocument" swimlane="legal" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateDueDate('sale','getClosingDate',-7)}"/> 
+      </event> 
+    </task>  
+    <transition to="executeClosingDocument" name="uploaded"> 
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="uploadClosingDocument" name="extension"> 
+      <description>"$2"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="uploadPrefinalInvoices"> 
+    <task name="uploadPrefinalInvoices" swimlane="propertyManager" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateDueDate('sale','getClosingDate',-7)}"/> 
+      </event> 
+    </task>  
+    <transition to="miDecisionJoin" name="uploaded"> 
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="miDecisionJoin" name="notRequired"> 
+      <description>"$2"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="closeFile"> 
+    <task name="closeFile" swimlane="lender" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateLenderCloseFileDueDate}"/> 
+      </event> 
+    </task>  
+    <transition to="fileClosed" name="fileClosed"> 
+      <action expression="#{loanDataAction.closeFile}"/> 
+    </transition> 
+  </task-node>  
+  <decision name="evictionJoinCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.EvictionJoinCheckDecisionHandler"/>  
+    <transition to="evictionJoin" name="yes"></transition>  
+    <transition to="possessionVacantJoinCheck" name="no"></transition> 
+  </decision>  
+  <decision name="mortgageInsureRealtorAgainCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.MortgageInsuredCheckDecisionHandler"/>  
+    <transition to="monitorJoin2" name="noMortgageInsured"></transition>  
+    <transition to="lenderRelistYesCheck2" name="yesMortgageInsured"></transition> 
+  </decision>  
+  <join name="monitorJoin2"> 
+    <transition to="listProperty" name="proceedToListProperty"></transition> 
+  </join>  
+  <join name="monitorJoin3"> 
+    <transition to="offerDetailCheck" name="proceedToOfferDetailCheck"></transition> 
+  </join>  
+  <fork name="secOccupancyFork"> 
+    <transition to="anotherOccupancyCheck" name="proceedToAnotherOccupancyCheck"></transition>  
+    <transition to="occupancyCheck" name="proceedToOccupancyCheck"></transition> 
+  </fork>  
+  <decision name="anotherOccupancyCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.OccupancyCheckDecisionHandler"/>  
+    <transition to="orderFullCMA" name="vacant"> 
+      <action expression="#{loanDataAction.anotherOccAndAppraisal('secOccupancyFork')}"/> 
+    </transition>  
+    <transition to="reviewForListing" name="tenanted"></transition> 
+  </decision>  
+  <join name="secOccupancyJoin"> 
+    <transition to="vacantSecuredJoin2" name="proceedToVacantSecuredJoin2"></transition> 
+  </join>  
+  <decision name="secOccupancyDoneCheck2"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.SecOccupancyJoinCheckDecisionHandler"/>  
+    <transition to="secOccupancyJoin" name="yes"></transition>  
+    <transition to="occVacantCheck" name="no"></transition> 
+  </decision>  
+  <task-node name="orderDriveByAppraisal"> 
+    <task name="orderDriveByAppraisal" swimlane="lender" duedate="1 business days"></task>  
+    <transition to="receivedDriveByAppraisal" name="ordered"> 
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="assignmentJoin" name="notRequired"> 
+      <description>"$2"</description> 
+    </transition> 
+  </task-node>  
+  <decision name="possessionJoinCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.PossessionJoinCheckDecisionHandler"/>  
+    <transition to="fromNOSExpiryJoin" name="no"></transition>  
+    <transition to="possessionJoin" name="yes"></transition> 
+  </decision>  
+  <fork name="vacantSecuredFork"> 
+    <transition to="vacantSecureProperty" name="proceedToVacantSecureProperty"> 
+      <action expression="#{loanDataAction.updateFork('mailFlag')}"/> 
+    </transition>  
+    <transition to="isReviewForListed" name="proceedToIsReviewForListed"></transition> 
+  </fork>  
+  <task-node name="setVacantUnsecuredMonitoringFrequency"> 
+    <task name="setVacantUnsecuredMonitoringFrequency" swimlane="lender" duedate="0 business days"></task>  
+    <transition to="unsecuredVacantMonitoring" name="frequencySet"></transition> 
+  </task-node>  
+  <task-node name="unsecuredVacantMonitoring"> 
+    <task name="unsecuredVacantMonitoring" swimlane="propertyManager" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{propertyManagerInfoAction.updateFrequencyTaskDueDate}"/> 
+      </event> 
+    </task>  
+    <transition to="securementCheck" name="monitoring"> 
+      <action expression="#{propertyManagerInfoAction.updateStatus('MONITORING')}"/> 
+    </transition> 
+  </task-node>  
+  <decision name="vacantSecuredCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.VacantSecuredCheckDecisionHandler"/>  
+    <transition to="reviewForListing" name="yes"></transition>  
+    <transition to="vacantSecuredFork" name="no"> 
+      <action expression="#{loanDataAction.updateFork('vacantSecureFork')}"/> 
+    </transition> 
+  </decision>  
+  <task-node name="executeClosingDocument"> 
+    <task name="executeClosingDocument" swimlane="lender" duedate="1 business days"></task>  
+    <transition to="evictedOwnerCheck" name="executed"> 
+      <action expression="#{legalInfoAction.updateStatus('SOLD')}"/> 
+    </transition> 
+  </task-node>  
+  <fork name="confirmCloseFork"> 
+    <transition to="mainInsuranceClaimPaid" name="proceedToMainInsuranceClaimPaid"></transition>  
+    <transition to="assignJudgmentandFinalReporttoMI" name="proceedToAssignJudgmentandFinalReporttoMI"></transition> 
+  </fork>  
+  <task-node name="fileMainInsuranceClaim"> 
+    <task name="fileMainInsuranceClaim" swimlane="lender" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateDueDate('sale','getClosingDate',7)}"/> 
+      </event> 
+    </task>  
+    <transition to="keyCheck2" name="notRequired"></transition>  
+    <transition to="keyCheck" name="filed"> 
+      <action expression="#{mortgageInsurerInfoAction.updateStatus('CLAIM_FILED')}"/> 
+    </transition> 
+  </task-node>  
+  <join name="confirmCloseJoin"> 
+    <transition to="fromClosingJoin" name="proceedToFromClosingJoin"></transition> 
+  </join>  
+  <task-node name="mainInsuranceClaimPaid"> 
+    <task name="mainInsuranceClaimPaid" swimlane="lender" duedate="7 business days"></task>  
+    <transition to="miFork" name="claimPaid"> 
+      <action expression="#{mortgageInsurerInfoAction.updateStatus('CLAIM_PAID')}"/> 
+    </transition> 
+  </task-node>  
+  <fork name="miFork"> 
+    <transition to="miInsurerCheck" name="proceedToMiInsurerCheck"></transition>  
+    <transition to="reviewClaims" name="proceedToReviewClaims"></transition> 
+  </fork>  
+  <task-node name="fileInsuranceDocuments"> 
+    <task name="fileInsuranceDocuments" swimlane="lender" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateLenderClaimModuleDueDate(40)}"/> 
+      </event> 
+    </task>  
+    <transition to="miJoin" name="filed"></transition> 
+  </task-node>  
+  <join name="miJoin"> 
+    <transition to="keyCheck1" name="proceedToKeyCheck1"></transition> 
+  </join>  
+  <task-node name="fileSupplementaryInsuranceClaim"> 
+    <task name="fileSupplementaryInsuranceClaim" swimlane="lender" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateFSCDueDate(90)}"/> 
+      </event> 
+    </task>  
+    <transition to="supplementaryInsuranceClaimPaid" name="filed"> 
+      <action expression="#{mortgageInsurerInfoAction.updateStatus('SUPPLEMENTARY_CLAIM_FILED')}"/> 
+    </transition> 
+  </task-node>  
+  <task-node name="supplementaryInsuranceClaimPaid"> 
+    <task name="supplementaryInsuranceClaimPaid" swimlane="lender" duedate="5 business days"></task>  
+    <transition to="miJoin" name="complete"> 
+      <action expression="#{loanDataAction.updateLenderCloseFileDueDateVariableAfterSupplimentaryClaim}"/> 
+    </transition> 
+  </task-node>  
+  <fork name="vacantSecureFork"> 
+    <transition to="vacantMonitoring" name="proceedToVacantMonitoring"></transition>  
+    <transition to="redirectUtilitiesIn" name="proceedToRedirectUtilitiesIn"></transition> 
+  </fork>  
+  <join name="vacantSecureJoin"> 
+    <transition to="occSecureCheck" name="proceedToOccSecureCheck"></transition> 
+  </join>  
+  <decision name="vacantSecuredJoinCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.VacantSecuredJoinCheckDecisionHandler"/>  
+    <transition to="vacantSecuredJoin" name="yes"></transition>  
+    <transition to="evictionDateSetJoin" name="no"></transition> 
+  </decision>  
+  <join name="vacantSecuredJoin"> 
+    <transition to="evictionJoinCheck" name="proceedToEvictionJoinCheck"></transition> 
+  </join>  
+  <decision name="vacantSecuredJoin2"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.VacantSecuredJoinCheckDecisionHandler"/>  
+    <transition to="attendTenantedEvictionCheck" name="no"></transition>  
+    <transition to="vacantSecuredJoin" name="yes"></transition> 
+  </decision>  
+  <task-node name="issueNewDemandLetter"> 
+    <task name="issueNewDemandLetter" swimlane="legal" duedate="1 business days"></task>  
+    <transition to="demandExpires" name="proceedToDemandExpires"> 
+      <action expression="#{legalInfoAction.updateStatus('DEMAND_ISSUED')}"/> 
+    </transition> 
+  </task-node>  
+  <decision name="evictedOccupancyCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.OccupancyCheckDecisionHandler"/>  
+    <transition to="evictionJoin" name="tenanted"> 
+      <action expression="#{loanDataAction.updateFork('tenantedEviction')}"/> 
+    </transition>  
+    <transition to="reviewForListing" name="owner"></transition>  
+    <transition to="reviewForListing" name="unconfirmed"></transition> 
+  </decision>  
+  <decision name="tenantedCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.TenantedCheckDecisionHandler"/>  
+    <transition to="evictionJoin" name="yes"></transition>  
+    <transition to="hiddenNode2" name="no"> 
+      <action expression="#{loanDataAction.updateFork('ownerEvicted')}"/> 
+    </transition> 
+  </decision>  
+  <task-node name="verifyAllocations"> 
+    <task name="verifyAllocations" swimlane="lender" duedate="0 business days"></task>  
+    <transition to="assignmentfork" name="allocate"></transition> 
+  </task-node>  
+  <decision name="possessionOccCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.PossessionOccCheckDecisionHandler"/>  
+    <transition to="possessionVacantFork" name="vacant"> 
+      <action expression="#{loanDataAction.updateFork('possessionVacantFork')}"/> 
+    </transition>  
+    <transition to="possessionFork" name="ownerUnconfirmed"> 
+      <action expression="#{loanDataAction.updateFork('possessionFork')}"/> 
+    </transition>  
+    <transition to="tenantedEvictionDecision" name="tenanted"></transition> 
+  </decision>  
+  <task-node name="tenantedEvictionDecision"> 
+    <task name="tenantedEvictionDecision" swimlane="lender"></task>  
+    <transition to="fromNOSExpiryJoin" name="notRequired"></transition> 
+  </task-node>  
+  <decision name="attendEvictionCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.TenantedCheckDecisionHandler"/>  
+    <transition to="secureCheckAfterPossOccCheck" name="yes"> 
+      <action expression="#{loanDataAction.addVariableToContext('tenantedEviction')}"/> 
+    </transition>  
+    <transition to="secureCheckAfterPossOccCheck" name="no"></transition> 
+  </decision>  
+  <decision name="attendEvictionCheck2"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.TenantedCheckDecisionHandler"/>  
+    <transition to="evictionDateSetJoin" name="yes"></transition>  
+    <transition to="nosExpiryCheck" name="no"></transition> 
+  </decision>  
+  <decision name="attendTenantedEvictionCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.AttendTenantedEvictionCheckDecisionHandler"/>  
+    <transition to="evictionJoinCheck" name="no"></transition>  
+    <transition to="fromNOSExpiryJoin" name="yes"></transition> 
+  </decision>  
+  <decision name="attendTenantedEvictionCheck2"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.AttendTenantedEvictionCheckDecisionHandler"/>  
+    <transition to="possessionJoinCheck" name="no"></transition>  
+    <transition to="assignmentJoin" name="yes"></transition> 
+  </decision>  
+  <decision name="miPropertySoldCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.PropertySoldCheckDecisionHandler"/>  
+    <transition to="assignmentJoin" name="sold"></transition>  
+    <transition to="vmFork" name="notSold"> 
+      <action expression="#{loanDataAction.updateFork('keyExchange')}"/> 
+    </transition> 
+  </decision>  
+  <decision name="keyExchangedCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.quebecWorkflow.decisions.KeyExchangedConfirmCheckDecisionHandler"/>  
+    <transition to="vacantMonitoring" name="no"></transition>  
+    <transition to="vmForkCheck" name="yes"> 
+      <action expression="#{loanDataAction.deleteFork('keyExchangeConfirmed')}"/> 
+    </transition> 
+  </decision>  
+  <task-node name="claimDecision"> 
+    <task name="claimDecision" swimlane="lender" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateDueDate('sale','getClosingDate',-7)}"/> 
+      </event> 
+    </task>  
+    <transition to="transferUtilitiesOut" name="notRequired"> 
+      <action expression="#{loanDataAction.updateFork('notRequired')}"/> 
+    </transition>  
+    <transition to="fromClosingFork" name="claimRequired"> 
+      <action expression="#{mortgageInsurerInfoAction.updateStatus('CLAIM_PENDING')}"/> 
+    </transition> 
+  </task-node>  
+  <decision name="miRequirementCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.MiRequirementCheckDecisionHandler"/>  
+    <transition to="fromClosingJoin" name="no"></transition>  
+    <transition to="miDecisionJoin" name="yes"></transition> 
+  </decision>  
+  <decision name="miInsurerCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.MiInsurerCheckDecisionHandler"/>  
+    <transition to="fileInsuranceDocuments" name="genworth"></transition>  
+    <transition to="fileInsuranceDocuments" name="ocg"></transition>  
+    <transition to="fileInsuranceDocumentCmhc" name="cmhc"></transition> 
+  </decision>  
+  <task-node name="fileInsuranceDocumentCmhc"> 
+    <task name="fileInsuranceDocumentCmhc" swimlane="lender" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateLenderClaimModuleDueDate(30)}"/> 
+      </event> 
+    </task>  
+    <transition to="miJoin" name="filed"></transition> 
+  </task-node>  
+  <decision name="miInsurerCheck2"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.MiInsurerCheckDecisionHandler"/>  
+    <transition to="offerDetailCheck3" name="ocg"></transition>  
+    <transition to="genWorthFork" name="genworth"> 
+      <action expression="#{loanDataAction.updateFork('genworth')}"/> 
+    </transition>  
+    <transition to="monitorJoin3" name="cmhc"></transition> 
+  </decision>  
+  <fork name="genWorthFork"> 
+    <transition to="offerDetailCheck3" name="proceedToOfferDetailCheck3"></transition>  
+    <transition to="genWorthJoin" name="proceedToGenWorthJoin"></transition> 
+  </fork>  
+  <join name="genWorthJoin"> 
+    <transition to="monitorJoin3" name=" "></transition> 
+  </join>  
+  <decision name="relistCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.RelistCheckDecisionHandler"/>  
+    <transition to="relistJoin" name="endRelisting"></transition>  
+    <transition to="relistJoin2" name="yes"></transition>  
+    <transition to="relistJoin" name="no"></transition> 
+  </decision>  
+  <join name="relistJoin"> 
+    <transition to="endRelistingCheck" name="proceedToEndRelistingCheck"></transition> 
+  </join>  
+  <join name="relistJoin2"> 
+    <transition to="offerDetailCheck3" name="proceedToOfferDetailCheck3"> 
+      <action expression="#{loanDataAction.updateFork('endRelisting')}"/> 
+    </transition> 
+  </join>  
+  <task-node name="relistProperty"> 
+    <task name="relistProperty" swimlane="lender"></task>  
+    <transition to="relistJoin2" name="relist"> 
+      <action expression="#{loanDataAction.updateFork('relist')}"/>  
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="relistJoin" name="notRelist"> 
+      <action expression="#{realEstateInfoAction.createContextVariableAndUpdateStatus('relistNot','MI_TRANSFER')}"/>  
+      <description>"$2"</description> 
+    </transition> 
+  </task-node>  
+  <fork name="relistFork"> 
+    <transition to="alreadyRelistedCheck" name="proceedToAlreadyRelistedCheck"> 
+      <action expression="#{loanDataAction.updateFork('passedRelistFork')}"/> 
+    </transition>  
+    <transition to="ninetyDaysOverCheck" name="proceedToNinetyDaysOverCheck"></transition> 
+  </fork>  
+  <decision name="ninetyDaysOverCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.NinetyDaysOverCheckDecisionHandler"/>  
+    <transition to="genWorthCheck" name="yes"></transition>  
+    <transition to="listedMaxTimesCheck" name="no"></transition> 
+  </decision>  
+  <decision name="genWorthCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.GenWorthCheckDecisionHandler"/>  
+    <transition to="listedMaxTimesCheck" name="no"></transition>  
+    <transition to="listMaxtimeGenWorthCheck" name="yes"></transition> 
+  </decision>  
+  <decision name="listMaxtimeGenWorthCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.ListMaxtimeGenWorthCheckDecisionHandler"/>  
+    <transition to="genWorthJoin" name="yes"></transition>  
+    <transition to="listedCMAReceived" name="no"></transition> 
+  </decision>  
+  <state name="hiddenNode"> 
+    <timer duedate="33 days" name="newtimer" transition="proceedToPropertySoldCheck3"/>  
+    <transition to="propertySoldCheck3" name="proceedToPropertySoldCheck3"></transition> 
+  </state>  
+  <decision name="alreadyRelistedCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.AlreadyRelistedCheckDecisionHandler"/>  
+    <transition to="lenderRelistYesCheck" name="yes"></transition>  
+    <transition to="hiddenNode" name="no"> 
+      <action expression="#{loanDataAction.updateFork('alreadyRelisted')}"/> 
+    </transition> 
+  </decision>  
+  <decision name="offerDetailCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.OfferDetailCheckDecisionHandler"/>  
+    <transition to="secOccupancyJoinCheck" name="yes"> 
+      <action expression="#{loanDataAction.signalVMConfirmedKeys('keyExchangeConfirmed')}"/> 
+    </transition>  
+    <transition to="monitorJoin3" name="no"></transition> 
+  </decision>  
+  <state name="hiddenNode2"> 
+    <timer duedate="1 day" name="newtimer" transition="proceedToLegalPropertySoldCheck"/>  
+    <transition to="legalPropertySoldCheck" name="proceedToLegalPropertySoldCheck"></transition> 
+  </state>  
+  <decision name="offerDetailCheck2"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.OfferDetailCheckDecisionHandler"/>  
+    <transition to="evictedOwnerCheck2" name="yes"></transition>  
+    <transition to="hiddenNode2" name="no"></transition> 
+  </decision>  
+  <decision name="legalPropertySoldCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.PropertySoldCheckDecisionHandler"/>  
+    <transition to="offerDetailCheck2" name="notSold"></transition>  
+    <transition to="uploadClosingDocument" name="sold"></transition> 
+  </decision>  
+  <decision name="lenderRelistPropertyCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.LenderRelistPropertyCheckDecisionHandler"/>  
+    <transition to="relistJoin" name="no"></transition>  
+    <transition to="mortgageInsuredRealtorCheck" name="yes"></transition> 
+  </decision>  
+  <decision name="lenderRelistYesCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.LenderRelistYesCheckDecisionHandler"/>  
+    <transition to="relistJoin2" name="yes"></transition>  
+    <transition to="relistJoin" name="no"></transition> 
+  </decision>  
+  <decision name="offerDetailCheck3"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.OfferDetailCheckDecisionHandler"/>  
+    <transition to="relistJoin2" name="no"></transition>  
+    <transition to="orderFullCMA" name="yes"> 
+      <action expression="#{lenderAction.createCustomEvent('fullCMAHit')}"/> 
+    </transition> 
+  </decision>  
+  <decision name="lenderRelistYesCheck2"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.LenderRelistYesCheckDecisionHandler"/>  
+    <transition to="relistJoin2" name="yes"></transition>  
+    <transition to="monitorJoin3" name="no"></transition> 
+  </decision>  
+  <decision name="endRelistingCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.EndRelistingCheckDecisionHandler"/>  
+    <transition to="mortgageInsuredRealtorCheck" name="yes"></transition>  
+    <transition to="lenderRelistPropertyCheck" name="no"></transition> 
+  </decision>  
+  <task-node name="keysDelivered"> 
+    <task name="keysDelivered" swimlane="realEstate" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateDueDate('sale','getClosingDate',-7)}"/> 
+      </event> 
+    </task>  
+    <transition to="miDecisionJoin" name="delivered"> 
+      <action expression="#{realEstateInfoAction.updateStatus('SALE_CLOSED')}"/> 
+    </transition> 
+  </task-node>  
+  <task-node name="saleClosedAndUploadReports"> 
+    <task name="saleClosedAndUploadReports" swimlane="legal" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateDueDate('sale','getClosingDate')}"/> 
+      </event> 
+    </task>  
+    <transition to="saleProceedsDeposited" name="saleClosed"> 
+      <action expression="#{ontarioEventObserverAction.legalUpdateStatusAtSCUReports}"/>  
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="saleClosedAndUploadReports" name="extension"> 
+      <description>"$2"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="setEvictionDate"> 
+    <task name="setEvictionDate" swimlane="legal" duedate="15 business days"></task>  
+    <transition to="attendEvictionAndSecureProperty" name="evictionDateSet"> 
+      <action expression="#{loanDataAction.addVariableToContext('evictionDateSet')}"/>  
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="evictionDateSetFork" name="notRequired"> 
+      <description>"$3"</description> 
+    </transition>  
+    <transition to="setEvictionDate" name="extension"> 
+      <action expression="#{loanDataAction.initializeVariable('addDate',10)}"/>  
+      <description>"$2"</description> 
+    </transition> 
+  </task-node>  
+  <fork name="evictionDateSetFork"> 
+    <transition to="attendEvictionCheck" name="proceedToAttendEvictionCheck"> 
+      <action expression="#{propertyManagerInfoAction.updateOccupancyAndPMStatus('PENDING_SECURE')}"/> 
+    </transition>  
+    <transition to="evictionFork" name="proceedToEvictionFork"> 
+      <action expression="#{legalInfoAction.updateStatus('RIGHT_TO_SALE')}"/> 
+    </transition> 
+  </fork>  
+  <decision name="evictionDateSetCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.EvictionDateSetCheckDecisionHandler"/>  
+    <transition to="possessionJoinCheck" name="no"></transition>  
+    <transition to="evictionDateSetJoin" name="yes"></transition> 
+  </decision>  
+  <join name="evictionDateSetJoin"> 
+    <transition to="tenantMonitoringCheck" name="proceedToTenantMonitoringCheck"></transition> 
+  </join>  
+  <decision name="propertySoldCheck3"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.PropertySoldCheckDecisionHandler"/>  
+    <transition to="relistProperty" name="notSold"></transition>  
+    <transition to="afterSoldRelistJoin" name="sold"></transition> 
+  </decision>  
+  <join name="afterSoldRelistJoin"> 
+    <transition to="monitorJoin" name="proceedToMonitorJoin"></transition> 
+  </join>  
+  <decision name="passedRelistForkCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.PassedRelistForkCheckDecisionHandler"/>  
+    <transition to="monitorJoin" name="no"></transition>  
+    <transition to="afterSoldRelistJoin" name="yes"></transition> 
+  </decision>  
+  <fork name="possessionVacantFork"> 
+    <transition to="reviewForListing" name="proceedToReviewForListing"></transition>  
+    <transition to="vacantSecureProperty" name="proceedToVacantSecureProperty"> 
+      <action expression="#{loanDataAction.updateFork('mailFlag')}"/> 
+    </transition>  
+    <transition to="evictionOccupancyCheck" name="proceedToEvictionOccupancyCheck"></transition> 
+  </fork>  
+  <join name="possessionVacantJoin"> 
+    <transition to="fromNOSExpiryJoin" name="proceedToFromNOSExpiryJoin"></transition> 
+  </join>  
+  <decision name="possessionVacantJoinCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.PossessionVacantJoinCheckDecisionHandler"/>  
+    <transition to="possessionVacantJoin" name="yes"></transition>  
+    <transition to="possessionJoinCheck" name="no"></transition> 
+  </decision>  
+  <task-node name="reviewClaims"> 
+    <task name="reviewClaims" swimlane="lender" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateLenderClaimModuleDueDate(75)}"/> 
+      </event> 
+    </task>  
+    <transition to="fileSupplementaryInsuranceClaim" name="supplementaryClaimRequired"> 
+      <action expression="#{mortgageInsurerInfoAction.updateStatus('SUPPLEMENTARY_CLAIM_PENDING')}"/>  
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="miJoin" name="noFurtherClaim"> 
+      <description>"$2"</description> 
+    </transition> 
+  </task-node>  
+  <decision name="occVacantCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.PossessionVacantJoinCheckDecisionHandler"/>  
+    <transition to="attendEvictionCheck2" name="no"></transition>  
+    <transition to="possessionVacantJoin" name="yes"></transition> 
+  </decision>  
+  <task-node name="setMWIPForPersonalJudgmentAfterMotion"> 
+    <task name="setMWIPForPersonalJudgmentAfterMotion" swimlane="lender" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateDueDate}"/> 
+      </event> 
+    </task>  
+    <transition to="setMWIPForPersonalJudgmentAfterMotion" name="reviewLater"> 
+      <action expression="#{loanDataAction.initializeVariable('addDate',30)}"/>  
+      <description>"$2"</description> 
+    </transition>  
+    <transition to="motionForJudgmentJoin" name="mWIPSet"> 
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="motionForJudgmentJoin" name="notRequired"> 
+      <description>"$3"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="reviewValuation"> 
+    <task name="reviewValuation" swimlane="lender" duedate="0 business days"></task>  
+    <transition to="listProperty" name="valuationReviewComplete"> 
+      <action expression="#{loanDataAction.deleteFork('lenderOrderAppraisalCompleted')}"/> 
+    </transition> 
+  </task-node>  
+  <task-node name="confirmKeyExchange"> 
+    <task name="confirmKeyExchange" swimlane="propertyManager" duedate="1 business days"></task>  
+    <transition to="uploadPrefinalInvoiceNotSold" name="confirmed"> 
+      <action expression="#{propertyManagerInfoAction.SetStatusAndVariableInBC('MI_PENDING_FINALS','keyExchangeConfirmed')}"/> 
+    </transition> 
+  </task-node>  
+  <fork name="keyFork"> 
+    <transition to="mainInsuranceClaimPaid" name="proceedToMainInsuranceClaimPaid"></transition>  
+    <transition to="keyExchangeHIddenNode" name="proceedToKeyExchangeHIddenNode"></transition>  
+    <transition to="transferTitleToMI" name="proceedToTransferTitleToMI"></transition> 
+  </fork>  
+  <join name="keyJoin"> 
+    <transition to="vmJoin" name="proceedToVmJoin"></transition> 
+  </join>  
+  <decision name="keyCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.KeyCheckDecisionHandler"/>  
+    <transition to="keyFork" name="yes"></transition>  
+    <transition to="confirmCloseFork" name="no"></transition> 
+  </decision>  
+  <decision name="keyCheck1"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.KeyCheckDecisionHandler"/>  
+    <transition to="confirmCloseJoin" name="no"></transition>  
+    <transition to="keyJoin" name="yes"></transition> 
+  </decision>  
+  <decision name="keyCheck2"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.KeyCheckDecisionHandler"/>  
+    <transition to="confirmCloseJoin" name="no"></transition>  
+    <transition to="keyJoin" name="yes"></transition> 
+  </decision>  
+  <decision name="keyCheck3"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.KeyCheckDecisionHandler"/>  
+    <transition to="keyJoin" name="yes"></transition>  
+    <transition to="miRequirementCheck" name="no"></transition> 
+  </decision>  
+  <state name="keyExchangeHIddenNode"> 
+    <timer duedate="10 days" name="newtimer" transition="proceedToConfirmKeyExchange"/>  
+    <transition to="confirmKeyExchange" name="proceedToConfirmKeyExchange"></transition> 
+  </state>  
+  <decision name="keyExchangedConfirmCheck3"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.quebecWorkflow.decisions.KeyExchangedConfirmCheckDecisionHandler"/>  
+    <transition to="tenantedMonitor" name="no"></transition>  
+    <transition to="tenantMonitoringJoin" name="yes"></transition> 
+  </decision>  
+  <fork name="miDecisionFork"> 
+    <transition to="keysDelivered" name="proceedToKeysDelivered"></transition>  
+    <transition to="uploadPrefinalInvoices" name="proceedToUploadPrefinalInvoices"></transition>  
+    <transition to="reviewSoldFirm" name="proceedToReviewSoldFirm"></transition>  
+    <transition to="lenderMortgageCheck" name="proceedToLenderMortgageCheck"></transition> 
+  </fork>  
+  <join name="miDecisionJoin"> 
+    <transition to="secOccupancyJoinCheck" name="proceedToSecOccupancyJoinCheck"></transition> 
+  </join>  
+  <decision name="occSecureCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.OccSecureCheckDecisionHandler"/>  
+    <transition to="vacantSecuredJoinCheck" name="yes"></transition>  
+    <transition to="secOccupancyDoneCheck2" name="no"></transition> 
+  </decision>  
+  <task-node name="reviewQuoteApprovals"> 
+    <task name="reviewQuoteApprovals" swimlane="propertyManager" duedate="0 business days"></task>  
+    <transition to="quoteWorkComplete" name="reviewed"></transition> 
+  </task-node>  
+  <decision name="possessionVacantJoin2Check"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.PossessionVacantJoinCheckDecisionHandler"/>  
+    <transition to="fromNOSExpiryJoin" name="no"></transition>  
+    <transition to="possessionVacantJoin" name="yes"></transition> 
+  </decision>  
+  <decision name="evictedOwnerCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.EvictedOwnerCheckDecisionHandler"/>  
+    <transition to="possessionVacantJoin2Check" name="no"></transition>  
+    <transition to="evictionJoin" name="yes"> 
+      <action expression="#{legalInfoAction.updateStatus('SOLD')}"/> 
+    </transition> 
+  </decision>  
+  <decision name="evictedOwnerCheck2"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.EvictedOwnerCheckDecisionHandler"/>  
+    <transition to="fromNOSExpiryJoin" name="no"></transition>  
+    <transition to="evictionJoin" name="yes"></transition> 
+  </decision>  
+  <decision name="monitoringPropertySoldCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.TenantedPropertySoldCheckDecisionHandler"/>  
+    <transition to="assignmentJoin" name="sold"></transition>  
+    <transition to="monitoringKeyCheck" name="notSold"></transition> 
+  </decision>  
+  <decision name="monitoringKeyCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.quebecWorkflow.decisions.KeyExchangedConfirmCheckDecisionHandler"/>  
+    <transition to="unsecuredVacantMonitoring" name="no"></transition>  
+    <transition to="assignmentJoin" name="yes"></transition> 
+  </decision>  
+  <task-node name="transferUtilitiesOutNotSold"> 
+    <task name="transferUtilitiesOutNotSold" swimlane="propertyManager" duedate="1 business days"></task>  
+    <transition to="uploadfinalinvoices" name="transfered"></transition>  
+    <transition to="uploadfinalinvoices" name="notRequired"></transition> 
+  </task-node>  
+  <task-node name="reviewSoldFirm"> 
+    <task name="reviewSoldFirm" swimlane="legal" duedate="2 business days"></task>  
+    <transition to="saleClosedAndUploadReports" name="soldFirmReviewed"> 
+      <action expression="#{ontarioEventObserverAction.reviewSoldFirmActions('signalHiddenNode2','SOLD_PENDING_CLOSING','/mails/reviewSoldFirmNotification.xhtml')}"/> 
+    </transition> 
+  </task-node>  
+  <task-node name="setOwnerOccupiedMonitoring"> 
+    <task name="setOwnerOccupiedMonitoring" swimlane="lender" duedate="0 business days"></task>  
+    <transition to="ownerOccupiedMonitoring" name="frequencySet"></transition> 
+  </task-node>  
+  <task-node name="setTenantedMonitoringFrequency"> 
+    <task name="setTenantedMonitoringFrequency" swimlane="lender" duedate="0 business days"></task>  
+    <transition to="tenantMonitoringFork" name="frequencySet"> 
+      <action expression="#{loanDataAction.updateFork('tenantedMonitoringFork')}"/> 
+    </transition> 
+  </task-node>  
+  <fork name="tenantMonitoringFork"> 
+    <transition to="tenantedMonitor" name="proceedToTenantedMonitor"></transition>  
+    <transition to="proceedToDemandForParticulars" name="proceedToProceedToDemandForParticulars"> 
+      <action expression="#{ontarioEventObserverAction.updateTaskTransition('proceedToDemandForParticulars')}"/> 
+    </transition>  
+    <transition to="tenantHiddenNode" name="proceedToTenantHiddenNode"></transition> 
+  </fork>  
+  <task-node name="proceedToDemandForParticulars"> 
+    <task name="proceedToDemandForParticulars" swimlane="lender" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateDueDate}"/> 
+      </event> 
+    </task>  
+    <transition to="issueDemandForParticulars" name="proceed"> 
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="proceedToDemandForParticulars" name="reviewLater"> 
+      <action expression="#{loanDataAction.initializeVariable('addDate',30)}"/>  
+      <description>"$2"</description> 
+    </transition>  
+    <transition to="tenantMonitoringJoin" name="notRequired"> 
+      <description>"$3"</description> 
+    </transition> 
+  </task-node>  
+  <state name="lenderHiddenNode"> 
+    <timer duedate="1 day" name="newtimer" transition="proceedToWritPossessionDoneCheck"/>  
+    <transition to="writPossessionDoneCheck" name="proceedToWritPossessionDoneCheck"></transition> 
+  </state>  
+  <decision name="writPossessionDoneCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.WritPossessionDoneCheckDecisionHandler"/>  
+    <transition to="lenderHiddenNode" name="no"></transition>  
+    <transition to="evictionDecision" name="yes"></transition> 
+  </decision>  
+  <task-node name="evictionDecision"> 
+    <task name="evictionDecision" swimlane="lender" duedate="2 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateDueDate}"/> 
+      </event> 
+    </task>  
+    <transition to="setEvictionDate" name="proceed"> 
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="evictionDateSetFork" name="notRequired"> 
+      <description>"$3"</description> 
+    </transition>  
+    <transition to="evictionDecision" name="reviewLater"> 
+      <action expression="#{loanDataAction.initializeVariable('addDate',7)}"/>  
+      <description>"$2"</description> 
+    </transition> 
+  </task-node>  
+  <decision name="rentKeyExngCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.quebecWorkflow.decisions.KeyExchangedConfirmCheckDecisionHandler"/>  
+    <transition to="updateRentStatus" name="no"></transition>  
+    <transition to="tenantMonitoringJoin" name="yes"></transition> 
+  </decision>  
+  <decision name="rentalPropSoldCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.TenantedPropertySoldCheckDecisionHandler"/>  
+    <transition to="tenantMonitoringJoin" name="sold"></transition>  
+    <transition to="rentKeyExngCheck" name="notSold"></transition> 
+  </decision>  
+  <join name="tenantMonitoringJoin"> 
+    <transition to="attendTenantedEvictionCheck2" name="proceedToAttendTenantedEvictionCheck2"></transition> 
+  </join>  
+  <decision name="tenantMonitoringCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.TenantMonitoringCheckDecisionHandler"/>  
+    <transition to="possessionJoinCheck" name="no"></transition>  
+    <transition to="tenantMonitoringJoin" name="yes"></transition> 
+  </decision>  
+  <task-node name="proceedWithFileN4"> 
+    <task name="proceedWithFileN4" swimlane="lender" duedate="2 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateDueDate}"/> 
+      </event> 
+    </task>  
+    <transition to="proceedWithFileN4" name="reviewLater"> 
+      <action expression="#{loanDataAction.initializeVariable('addDate',10)}"/>  
+      <description>"$3"</description> 
+    </transition>  
+    <transition to="fileN4" name="proceed"> 
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="isOccVacant2" name="notRequired"> 
+      <description>"$4"</description> 
+    </transition>  
+    <transition to="updateRentStatus" name="settled"> 
+      <description>"$2"</description> 
+    </transition> 
+  </task-node>  
+  <decision name="vacantStatusCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.VacantStatusCheckDecisionHandler"/>  
+    <transition to="tenantedPropertySoldCheck" name="others"></transition>  
+    <transition to="tenantMonitoringJoin" name="vacant"> 
+      <action expression="#{lenderAction.createCustomEvent('signalTenantedHiddenNode')}"/> 
+    </transition> 
+  </decision>  
+  <task-node name="transferTitleToMI"> 
+    <task name="transferTitleToMI" swimlane="legal" duedate="5 business days"></task>  
+    <transition to="assignJudgmentandFinalReporttoMI" name="titleTransfered"> 
+      <action expression="#{legalInfoAction.updateStatus('TRANSFERRED_MI')}"/> 
+    </transition> 
+  </task-node>  
+  <task-node name="uploadPrefinalInvoiceNotSold"> 
+    <task name="uploadPrefinalInvoiceNotSold" swimlane="propertyManager" duedate="1 business days"></task>  
+    <transition to="transferUtilitiesOutNotSold" name="completed"></transition> 
+  </task-node>  
+  <task-node name="proceedWithRentalAttornment"> 
+    <task name="proceedWithRentalAttornment" swimlane="lender" duedate="3 business days"></task>  
+    <transition to="isOccVacant" name="notRequired"> 
+      <description>"$2"</description> 
+    </transition>  
+    <transition to="issueRentalAttornment" name="yesRentalAttornment"> 
+      <action expression="#{loanDataAction.updateFork('tenanted')}"/>  
+      <description>"$1"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="reviewWritOfPossession"> 
+    <task name="reviewWritOfPossession" swimlane="legal" duedate="10 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateDueDate('legal','getReviewWOPDate')}"/> 
+      </event> 
+    </task>  
+    <transition to="writOfPossession" name="proceedWithWOP"></transition>  
+    <transition to="wrossForkCheck" name="notRequired"></transition> 
+  </task-node>  
+  <task-node name="createMWIPTaxSearch"> 
+    <task name="createMWIPTaxSearch" swimlane="lender" duedate="1 business days"></task>  
+    <transition to="demandLetterAndTitleSearchJoin" name="complete"></transition> 
+  </task-node>  
+  <state name="hiddenNode6"> 
+    <transition to="assignmentJoin" name="finalClose"></transition>  
+    <transition to="addImpairmentInsurance" name="addImpIns"></transition> 
+  </state>  
+  <task-node name="reviewImpairmentInsurance"> 
+    <task name="reviewImpairmentInsurance" swimlane="lender" duedate="60 business days"></task>  
+    <transition to="renewImpairmentInsurance" name="addImpairmentInsurance"> 
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="reviewImpairmentInsurance" name="reviewLater"> 
+      <description>"$2"</description> 
+    </transition>  
+    <transition to="fileSoldOrClosedCheck" name="notRequired"> 
+      <description>"$3"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="addImpairmentInsurance"> 
+    <task name="addImpairmentInsurance" swimlane="lender" duedate="1 business days"></task>  
+    <transition to="reviewImpairmentInsurance" name="reviewLater"> 
+      <description>"$2"</description> 
+    </transition>  
+    <transition to="renewImpairmentInsurance" name="added"> 
+      <action expression="#{loanDataAction.setImpairmentDate('effective')}"/>  
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="assignmentJoin" name="notRequired"> 
+      <description>"$3"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="renewImpairmentInsurance"> 
+    <task name="renewImpairmentInsurance" swimlane="lender" duedate="120 business days"></task>  
+    <transition to="renewImpairmentInsurance" name="renewed"> 
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="fileSoldOrClosedCheck" name="expiredImpairmentInsurance"> 
+      <action expression="#{loanDataAction.setImpairmentDate('expire')}"/>  
+      <description>"$2"</description> 
+    </transition> 
+  </task-node>  
+  <decision name="fileSoldOrClosedCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.PropertySoldCheckDecisionHandler"/>  
+    <transition to="assignmentJoin" name="sold"></transition>  
+    <transition to="hiddenNode6" name="notSold"></transition> 
+  </decision>  
+  <decision name="quoteApprovalCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.QuoteApprovalCheckDecisionHandler"/>  
+    <transition to="reviewQuoteApprovals" name="quoteAccept"></transition>  
+    <transition to="vacantSecureJoin" name="quoteReject"></transition> 
+  </decision>  
+  <task-node name="orderFirstOccupancyCheck"> 
+    <task name="orderFirstOccupancyCheck" swimlane="propertyManager" duedate="0 business days"></task>  
+    <transition to="occupancyCheckReceived" name="ordered"></transition> 
+  </task-node>  
+  <task-node name="orderDriveBY"> 
+    <task name="orderDriveBY" swimlane="realEstate" duedate="0 business days"></task>  
+    <transition to="loanLossProvisionReport" name="notRequired"> 
+      <description>"$2"</description> 
+    </transition>  
+    <transition to="driveByReceived" name="ordered"> 
+      <description>"$1"</description> 
+    </transition> 
+  </task-node>  
+  <fork name="socSuspendFork"> 
+    <transition to="issueNoticeOfSale" name="proceedToIssueNoticeOfSale"></transition>  
+    <transition to="reviewSOCForJudgment" name="proceedToReviewSOCForJudgment"></transition> 
+  </fork>  
+  <join name="socSuspendJoin"> 
+    <transition to="demandLetterAndTitleSearchJoin" name="proceedToDemandLetterAndTitleSearchJoin"></transition> 
+  </join>  
+  <task-node name="reviewSOCForJudgment"> 
+    <task name="reviewSOCForJudgment" swimlane="lender" duedate="30 business days"></task>  
+    <transition to="socSuspendJoin" name="notRequired"> 
+      <description>"$3"</description> 
+    </transition>  
+    <transition to="reviewSOCForJudgment" name="reviewLater"> 
+      <description>"$2"</description> 
+    </transition>  
+    <transition to="setMWIPForPersonalJudgment" name="pursue"> 
+      <description>"$1"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="setMWIPForPersonalJudgment"> 
+    <task name="setMWIPForPersonalJudgment" swimlane="lender" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateDueDate}"/> 
+      </event> 
+    </task>  
+    <transition to="socSuspendJoin" name="mWIPSet"> 
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="socSuspendJoin" name="notRequired"> 
+      <description>"$3"</description> 
+    </transition>  
+    <transition to="setMWIPForPersonalJudgment" name="reviewLater"> 
+      <action expression="#{loanDataAction.initializeVariable('addDate',30)}"/>  
+      <description>"$2"</description> 
+    </transition> 
+  </task-node>  
+  <fork name="motionForJudgmentFork"> 
+    <transition to="setMWIPForPersonalJudgmentAfterMotion" name="proceedToSetMWIPForPersonalJudgmentAfterMotion"></transition>  
+    <transition to="writofSeizureandSale" name="proceedToWritofSeizureandSale"></transition> 
+  </fork>  
+  <join name="motionForJudgmentJoin"> 
+    <transition to="wrossJoin" name="proceedToWrossJoin"></transition> 
+  </join>  
+  <decision name="isMFJSuspended"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.IsMFJSuspendedDecisionHandler"/>  
+    <transition to="writOfPossession" name="no"></transition>  
+    <transition to="wrossFork" name="yes"> 
+      <action expression="#{loanDataAction.deleteFork('suspended')}"/> 
+    </transition> 
+  </decision>  
+  <task-node name="reviewSecurement"> 
+    <task name="reviewSecurement" swimlane="lender" duedate="3 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateDueDate}"/> 
+      </event> 
+    </task>  
+    <transition to="reviewSecurement" name="reviewLater"> 
+      <action expression="#{loanDataAction.initializeVariable('addDate',14)}"/>  
+      <description>"$2"</description> 
+    </transition>  
+    <transition to="vacantSecureProperty" name="secure"> 
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="setVacantUnsecuredMonitoringFrequency" name="notRequired"> 
+      <description>"$3"</description> 
+    </transition> 
+  </task-node>  
+  <task-node name="fullCMAReceived"> 
+    <task name="fullCMAReceived" swimlane="realEstate" duedate="3 business days"></task>  
+    <transition to="isLenderOrderAppraisalCompleted" name="uploaded"> 
+      <action expression="#{realEstateInfoAction.updateStatus('RIGHT_TO_SELL')}"/> 
+    </transition> 
+  </task-node>  
+  <decision name="secureCheckAfterPossOccCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.novascotiaWorkflow.decisions.SecureStatusCheckDecisionHandler"/>  
+    <transition to="vacantSecureProperty" name="no"> 
+      <action expression="#{loanDataAction.updateFork('mailFlag')}"/> 
+    </transition>  
+    <transition to="setVacantMonitoringFrequency" name="yes"></transition> 
+  </decision>  
+  <task-node name="reviewForListing"> 
+    <task name="reviewForListing" swimlane="lender" duedate="0 business days"> 
+      <event type="task-assign"> 
+        <action expression="#{loanDataAction.updateDueDate}"/> 
+      </event> 
+    </task>  
+    <transition to="orderFullCMA" name="proceedWithValuations"> 
+      <action expression="#{lenderAction.createCustomEvent('fullCMAHit')}"/> 
+    </transition>  
+    <transition to="reviewForListing" name="reviewLater"> 
+      <action expression="#{loanDataAction.initializeVariable('addDate',7)}"/> 
+    </transition> 
+  </task-node>  
+  <task-node name="orderAppraisal"> 
+    <task name="orderAppraisal" swimlane="lender" duedate="3 business days"></task>  
+    <transition to="hiddenNode4" name="$2NotRequired"> 
+      <action expression="#{lenderAction.createCustomEvent('appraisalReceivedCompleted')}"/> 
+    </transition>  
+    <transition to="appraisalReceived" name="$1Ordered"></transition> 
+  </task-node>  
+  <state name="hiddenNode4"> 
+    <transition to="assignmentJoin" name="finalClose"></transition>  
+    <transition to="orderAppraisal" name="doAppraise"></transition> 
+  </state>  
+  <task-node name="appraisalReceived"> 
+    <task name="appraisalReceived" swimlane="lender" duedate="5 business days"></task>  
+    <transition to="hiddenNode4" name="uploaded"> 
+      <action expression="#{lenderAction.createCustomEvent('appraisalReceivedCompleted')}"/> 
+    </transition> 
+  </task-node>  
+  <decision name="isSocSuspended"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.IsSocSuspendedDecisionHandler"/>  
+    <transition to="socSuspendJoin" name="yes"> 
+      <action expression="#{loanDataAction.deleteFork('suspended')}"/> 
+    </transition>  
+    <transition to="demandLetterAndTitleSearchJoin" name="no"></transition> 
+  </decision>  
+  <state name="hiddenNode7"> 
+    <transition to="nOSExpiry" name="proceedToNOSExpiry"></transition> 
+  </state>  
+  <decision name="isLenderOrderAppraisalCompleted"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.manitobaWorkflow.decisions.IsLenderOrderAppraisalCompletedDecisionHandler"/>  
+    <transition to="hiddenNode5" name="no"></transition>  
+    <transition to="reviewValuation" name="yes"></transition> 
+  </decision>  
+  <state name="hiddenNode5"> 
+    <transition to="reviewValuation" name="complete"></transition> 
+  </state>  
+  <fork name="wrossFork"> 
+    <transition to="motionForJudgmentJoin" name="proceedToMotionForJudgmentJoin"></transition>  
+    <transition to="writOfPossession" name="proceedToWritOfPossession"> 
+      <action expression="#{loanDataAction.updateFork('wrossFork')}"/> 
+    </transition> 
+  </fork>  
+  <join name="wrossJoin"> 
+    <transition to="evictionOccupancyCheck" name="proceedToEvictionOccupancyCheck"></transition> 
+  </join>  
+  <decision name="wrossForkCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.WrossForkCheckDecisionHandler"/>  
+    <transition to="wrossJoin" name="yes"></transition>  
+    <transition to="evictionOccupancyCheck" name="no"></transition> 
+  </decision>  
+  <task-node name="issueDemandForParticulars"> 
+    <task name="issueDemandForParticulars" swimlane="legal" duedate="3 business days"></task>  
+    <transition to="tenantMonitoringJoin" name="notRequired"></transition>  
+    <transition to="demandForParticularsReceived" name="issued"></transition> 
+  </task-node>  
+  <task-node name="demandForParticularsReceived"> 
+    <task name="demandForParticularsReceived" swimlane="legal" duedate="10 business days"></task>  
+    <transition to="proceedWithRentalAttornment" name="received"> 
+      <description>"$1"</description> 
+    </transition>  
+    <transition to="tenantMonitoringJoin" name="notRequired"> 
+      <description>"$2"</description> 
+    </transition> 
+  </task-node>  
+  <state name="tenantHiddenNode"> 
+    <transition to="evictionDateSetCheck2" name="proceedToEvictionDateSetCheck2"></transition> 
+  </state>  
+  <decision name="isOccVacant"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.VacantStatusCheckDecisionHandler"/>  
+    <transition to="tenantMonitoringJoin" name="vacant"></transition>  
+    <transition to="writPossessionDoneCheck" name="others"></transition> 
+  </decision>  
+  <decision name="isOccVacant2"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.VacantStatusCheckDecisionHandler"/>  
+    <transition to="tenantMonitoringJoin" name="vacant"></transition>  
+    <transition to="updateRentStatus" name="others"></transition> 
+  </decision>  
+  <decision name="lenderMortgageCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.MortgageInsuredCheckDecisionHandler"/>  
+    <transition to="claimDecision" name="yesMortgageInsured"></transition>  
+    <transition to="transferUtilitiesOut" name="noMortgageInsured"></transition> 
+  </decision>  
+  <decision name="tenantedNowVacantCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.TenantedNowVacantCheckDecisionHandler"/>  
+    <transition to="fromNOSExpiryJoin" name="yes"></transition>  
+    <transition to="vacantSecuredCheck" name="no"></transition> 
+  </decision>  
+  <decision name="evictionDateSetCheck2"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.EvictionDateSetCheck2DecisionHandler"/>  
+    <transition to="vacantSecuredFork" name="no"> 
+      <action expression="#{loanDataAction.updateFork('tenantedNowVacant')}"/> 
+    </transition>  
+    <transition to="evictionDateSetJoin" name="yes"></transition> 
+  </decision>  
+  <task-node name="receivedDriveByAppraisal"> 
+    <task name="receivedDriveByAppraisal" swimlane="lender" duedate="3 business days"></task>  
+    <transition to="assignmentJoin" name="uploaded"></transition> 
+  </task-node>  
+  <task-node name="secondOccupancyCheckReceived"> 
+    <task name="secondOccupancyCheckReceived" swimlane="propertyManager" duedate="3 business days"></task>  
+    <transition to="secOccupancyCheck" name="received"> 
+      <action expression="#{propertyManagerInfoAction.updateStatus('ON_HOLD')}"/> 
+    </transition> 
+  </task-node>  
+  <task-node name="orderPossessionOccupancyCheck"> 
+    <task name="orderPossessionOccupancyCheck" swimlane="propertyManager" duedate="0 business days"></task>  
+    <transition to="possessionOccupancyCheck" name="ordered"></transition> 
+  </task-node>  
+  <task-node name="pmCloseFile"> 
+    <task name="pmCloseFile" swimlane="propertyManager" duedate="7 business days"></task>  
+    <transition to="keyCheck3" name="fileClosed"> 
+      <action expression="#{propertyManagerInfoAction.updateStatus('CLOSED')}"/> 
+    </transition> 
+  </task-node>  
+  <decision name="closedFileMICheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.MortgageInsuredCheckDecisionHandler"/>  
+    <transition to="keyCheck2" name="noMortgageInsured"></transition>  
+    <transition to="legalCloseFileMi" name="yesMortgageInsured"></transition> 
+  </decision>  
+  <task-node name="legalCloseFileMi"> 
+    <task name="legalCloseFileMi" swimlane="legal" duedate="7 business days"></task>  
+    <transition to="insureVariableCheck" name="fileClosed"> 
+      <action expression="#{legalInfoAction.updateStatus('SOLD_CLOSED')}"/> 
+    </transition> 
+  </task-node>  
+  <decision name="closeFileMICheck2"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.MortgageInsuredCheckDecisionHandler"/>  
+    <transition to="legalCloseFileMi" name="noMortgageInsured"></transition>  
+    <transition to="miDecisionJoin" name="yesMortgageInsured"></transition> 
+  </decision>  
+  <decision name="insureVariableCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.InsureVariableCheckDecisionHandler"/>  
+    <transition to="keyCheck2" name="yes"></transition>  
+    <transition to="miDecisionJoin" name="no"></transition> 
+  </decision>  
+  <fork name="vmFork"> 
+    <transition to="fileMainInsuranceClaim" name="proceedToFileMainInsuranceClaim"></transition>  
+    <transition to="vacantMonitoring" name="proceedToVacantMonitoring"></transition> 
+  </fork>  
+  <decision name="vmForkCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.KeyCheckDecisionHandler"/>  
+    <transition to="vacantSecureJoin" name="no"></transition>  
+    <transition to="vmJoin" name="yes"></transition> 
+  </decision>  
+  <join name="vmJoin"> 
+    <transition to="assignmentJoin" name="proceedToAssignmentJoin"></transition> 
+  </join>  
+  <decision name="nosExpiryCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.NosExpiryCheckDecisionHandler"/>  
+    <transition to="assignmentJoin" name="no"></transition>  
+    <transition to="fromNOSExpiryJoin" name="yes"></transition> 
+  </decision>  
+  <decision name="securementCheck"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.novascotiaWorkflow.decisions.SecureStatusCheckDecisionHandler"/>  
+    <transition to="monitoringPropertySoldCheck" name="no"></transition>  
+    <transition to="assignmentJoin" name="yes"></transition> 
+  </decision>  
+  <decision name="isReviewForListed"> 
+    <handler class="com.nas.recovery.web.action.workflowmgt.ontarioWorkflow.decisions.IsReviewForListedDecisionHandler"/>  
+    <transition to="reviewForListing" name="no"></transition>  
+    <transition to="vacantSecuredJoin" name="yes"></transition> 
+  </decision> 
+</process-definition>

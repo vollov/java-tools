@@ -1,9 +1,3 @@
-# ps-crypt
-utility class to encrypt/decrypt data 
-
-## eclipse project settings
-mvn eclipse:eclipse
-
 SET JAVA_HOME=C:\opt\Java\jdk1.8.0_73
 SET PATH=%JAVA_HOME%/bin;%PATH%;
 
